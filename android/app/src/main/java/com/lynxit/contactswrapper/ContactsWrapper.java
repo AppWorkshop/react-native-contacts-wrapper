@@ -28,6 +28,7 @@ import com.facebook.react.bridge.ReadableMap;
 import com.facebook.react.bridge.ReadableMapKeySetIterator;
 import com.facebook.react.bridge.ReadableType;
 import com.facebook.react.bridge.WritableMap;
+import com.facebook.react.bridge.WritableArray;
 import com.facebook.react.uimanager.ViewManager;
 
 public class ContactsWrapper extends ReactContextBaseJavaModule implements ActivityEventListener {
@@ -58,7 +59,6 @@ public class ContactsWrapper extends ReactContextBaseJavaModule implements Activ
         add(ContactsContract.CommonDataKinds.Email.TYPE);
         add(ContactsContract.CommonDataKinds.Email.LABEL);
     }};
-
 
     public ContactsWrapper(ReactApplicationContext reactContext) {
         super(reactContext);
@@ -109,8 +109,8 @@ public class ContactsWrapper extends ReactContextBaseJavaModule implements Activ
     public void onActivityResult(Activity ContactsWrapper, final int requestCode, final int resultCode, final Intent intent) {
 
         if(mContactsPromise == null || mCtx == null
-              || (requestCode != CONTACT_REQUEST && requestCode != EMAIL_REQUEST)){
-          return;
+                || (requestCode != CONTACT_REQUEST && requestCode != EMAIL_REQUEST)){
+            return;
         }
 
         String email = null;
@@ -125,7 +125,12 @@ public class ContactsWrapper extends ReactContextBaseJavaModule implements Activ
                             //First get ID
                             String id = null;
                             int idx;
+
                             WritableMap contactData = Arguments.createMap();
+                            WritableArray phonesArray = Arguments.createArray();
+                            WritableArray emailsArray = Arguments.createArray();
+
+
                             Cursor cursor = this.contentResolver.query(contactUri, null, null, null, null);
                             if (cursor != null && cursor.moveToFirst()) {
                                 idx = cursor.getColumnIndex(ContactsContract.Contacts._ID);
@@ -143,8 +148,8 @@ public class ContactsWrapper extends ReactContextBaseJavaModule implements Activ
 
                             // Create the projection (SQL fields) and sort order.
                             String[] projection = {
-                                ContactsContract.Contacts.Entity.MIMETYPE,
-                                ContactsContract.Contacts.Entity.DATA1
+                                    ContactsContract.Contacts.Entity.MIMETYPE,
+                                    ContactsContract.Contacts.Entity.DATA1
                             };
                             String sortOrder = ContactsContract.Contacts.Entity.RAW_CONTACT_ID + " ASC";
                             cursor = this.contentResolver.query(contactUri, projection, null, null, sortOrder);
@@ -155,9 +160,36 @@ public class ContactsWrapper extends ReactContextBaseJavaModule implements Activ
                             /* Map Any contact data we want returned to the JS object key for React Native */
                             HashMap<String, String> returnKeys = new HashMap<String, String>();
                             returnKeys.put(ContactsContract.CommonDataKinds.StructuredName.CONTENT_ITEM_TYPE, "name");
-                            returnKeys.put(ContactsContract.CommonDataKinds.Phone.CONTENT_ITEM_TYPE, "phone");
-                            returnKeys.put(ContactsContract.CommonDataKinds.Email.CONTENT_ITEM_TYPE, "email");
 
+                            // loops through all phones
+
+                            Cursor phones = this.contentResolver.query(ContactsContract.CommonDataKinds.Phone.CONTENT_URI, null,
+                                    ContactsContract.CommonDataKinds.Phone.CONTACT_ID + " = " + id, null, null);
+                            while (phones.moveToNext())
+                            {
+                                WritableMap phoneObj = Arguments.createMap();
+                                String number = phones.getString(phones.getColumnIndex(ContactsContract.CommonDataKinds.Phone.NUMBER));
+                                phoneObj.putString("number", number);
+                                phonesArray.pushString(number);
+                            }
+                            phones.close();
+
+                            // loops through all emails
+                            Cursor emails = this.contentResolver.query(ContactsContract.CommonDataKinds.Email.CONTENT_URI, null,
+                                    ContactsContract.CommonDataKinds.Email.CONTACT_ID + " = " + id, null, null);
+                            while (emails.moveToNext())
+                            {
+                                WritableMap emailObj = Arguments.createMap();
+                                String emailAddress = emails.getString(emails.getColumnIndex(ContactsContract.CommonDataKinds.Email.ADDRESS));
+                                emailObj.putString("address", emailAddress);
+                                emailsArray.pushString(emailAddress);
+                            }
+                            emails.close();
+
+                            contactData.putArray("email", emailsArray);
+                            contactData.putArray("phone", phonesArray);
+
+                            // this now only grabs the name of the contact
                             int dataIdx = cursor.getColumnIndex(ContactsContract.Contacts.Entity.DATA1);
                             int mimeIdx = cursor.getColumnIndex(ContactsContract.Contacts.Entity.MIMETYPE);
                             if (cursor.moveToFirst()) {
@@ -172,6 +204,7 @@ public class ContactsWrapper extends ReactContextBaseJavaModule implements Activ
 
                             cursor.close();
                             if(foundData) {
+                                // send contact back
                                 mContactsPromise.resolve(contactData);
                                 return;
                             } else {
@@ -193,8 +226,8 @@ public class ContactsWrapper extends ReactContextBaseJavaModule implements Activ
 
                             // query for everything email
                             Cursor cursor = mCtx.getContentResolver().query(ContactsContract.CommonDataKinds.Email.CONTENT_URI,
-                                                                            null, ContactsContract.CommonDataKinds.Email.CONTACT_ID + "=?", new String[]{id},
-                                                                            null);
+                                    null, ContactsContract.CommonDataKinds.Email.CONTACT_ID + "=?", new String[]{id},
+                                    null);
 
                             int emailIdx = cursor.getColumnIndex(ContactsContract.CommonDataKinds.Email.DATA);
 

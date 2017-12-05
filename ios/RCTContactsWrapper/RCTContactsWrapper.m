@@ -56,17 +56,14 @@ RCT_EXPORT_METHOD(getEmail:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseR
 -(void) launchContacts {
   
   UIViewController *picker;
-  if([CNContactPickerViewController class]) {
-    //iOS 9+
-    picker = [[CNContactPickerViewController alloc] init];
-    ((CNContactPickerViewController *)picker).delegate = self;
-  } else {
-    //iOS 8 and below
-    picker = [[ABPeoplePickerNavigationController alloc] init];
-    [((ABPeoplePickerNavigationController *)picker) setPeoplePickerDelegate:self];
-  }
+  picker = [[CNContactPickerViewController alloc] init];
+  ((CNContactPickerViewController *)picker).delegate = self;
+  
+  [[UIApplication sharedApplication] setStatusBarStyle:UIStatusBarStyleDefault];
+  
   //Launch Contact Picker or Address Book View Controller
   UIViewController *root = [[[UIApplication sharedApplication] delegate] window].rootViewController;
+  
   BOOL modalPresent = (BOOL) (root.presentedViewController);
   if (modalPresent) {
 	  UIViewController *parent = root.presentedViewController;
@@ -74,7 +71,6 @@ RCT_EXPORT_METHOD(getEmail:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseR
   } else {
 	  [root presentViewController:picker animated:YES completion:nil];
   }
-  
 }
 
 
@@ -123,6 +119,8 @@ RCT_EXPORT_METHOD(getEmail:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseR
 
 #pragma mark - Event handlers - iOS 9+
 - (void)contactPicker:(CNContactPickerViewController *)picker didSelectContact:(CNContact *)contact {
+  [[UIApplication sharedApplication] setStatusBarStyle:UIStatusBarStyleLightContent];
+  
   switch(_requestCode){
     case REQUEST_CONTACT:
     {
@@ -139,15 +137,28 @@ RCT_EXPORT_METHOD(getEmail:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseR
       //Return full name
       [contactData setValue:fullName forKey:@"name"];
       
-      //Return first phone number
+      //Return array of phone numbers
       if([phoneNos count] > 0) {
-        CNPhoneNumber *phone = ((CNLabeledValue *)phoneNos[0]).value;
-        [contactData setValue:phone.stringValue forKey:@"phone"];
+        NSMutableArray *phoneData = [[NSMutableArray alloc] init];
+        
+        for (int i = 0; i < [phoneNos count]; i++) {
+          CNPhoneNumber *phone = ((CNLabeledValue *)phoneNos[i]).value;
+          [phoneData addObject:phone.stringValue];
+        }
+        
+        [contactData setValue:phoneData forKey:@"phone"];
       }
       
-      //Return first email address
+      //Return array of email address
       if([emailAddresses count] > 0) {
-        [contactData setValue:((CNLabeledValue *)emailAddresses[0]).value forKey:@"email"];
+        NSMutableArray *emailData = [[NSMutableArray alloc] init];
+        
+        for (int i = 0; i < [emailAddresses count]; i++) {
+          CNLabeledValue *email = ((CNLabeledValue *)emailAddresses[i]).value;
+          [emailData addObject:email];
+        }
+
+        [contactData setValue:emailData forKey:@"email"];
       }
       
       [self contactPicked:contactData];
@@ -170,87 +181,12 @@ RCT_EXPORT_METHOD(getEmail:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseR
       [self pickerError];
     break;
   }
-  
-  
 }
 
 
 - (void)contactPickerDidCancel:(CNContactPickerViewController *)picker {
+  [[UIApplication sharedApplication] setStatusBarStyle:UIStatusBarStyleLightContent];
   [self pickerCancelled];
 }
-
-
-
-#pragma mark - Event handlers - iOS 8
-
-/* Same functionality as above, implemented using iOS8 AddressBook library */
-- (void)peoplePickerNavigationController:(ABPeoplePickerNavigationController *)peoplePicker didSelectPerson:(ABRecordRef)person {
-  switch(_requestCode) {
-    case(REQUEST_CONTACT):
-    {
-      
-      /* Return NSDictionary ans JS Object to RN, containing basic contact data
-       This is a starting point, in future more fields should be added, as required.
-       This could also be extended to return arrays of phone numbers, email addresses etc. instead of jsut first found
-       */
-      NSMutableDictionary *contactData = [self emptyContactDict];
-            NSString *fNameObject, *mNameObject, *lNameObject;
-      fNameObject = (__bridge NSString *) ABRecordCopyValue(person, kABPersonFirstNameProperty);
-      mNameObject = (__bridge NSString *) ABRecordCopyValue(person, kABPersonMiddleNameProperty);
-      lNameObject = (__bridge NSString *) ABRecordCopyValue(person, kABPersonLastNameProperty);
-      
-      NSString *fullName = [self getFullNameForFirst:fNameObject middle:mNameObject last:lNameObject];
-      
-      //Return full name
-      [contactData setValue:fullName forKey:@"name"];
-      
-      //Return first phone number
-      ABMultiValueRef phoneMultiValue = ABRecordCopyValue(person, kABPersonPhoneProperty);
-      NSArray *phoneNos = (__bridge NSArray *)ABMultiValueCopyArrayOfAllValues(phoneMultiValue);
-      if([phoneNos count] > 0) {
-        [contactData setValue:phoneNos[0] forKey:@"phone"];
-      }
-     
-      //Return first email
-      ABMultiValueRef emailMultiValue = ABRecordCopyValue(person, kABPersonEmailProperty);
-      NSArray *emailAddresses = (__bridge NSArray *)ABMultiValueCopyArrayOfAllValues(emailMultiValue);
-      if([emailAddresses count] > 0) {
-        [contactData setValue:emailAddresses[0] forKey:@"email"];
-      }
-      
-
-      [self contactPicked:contactData];
-    }
-      break;
-    case(REQUEST_EMAIL):
-    {
-      /* Return Only email address as string */
-      ABMultiValueRef emailMultiValue = ABRecordCopyValue(person, kABPersonEmailProperty);
-      NSArray *emailAddresses = (__bridge NSArray *)ABMultiValueCopyArrayOfAllValues(emailMultiValue);
-      if([emailAddresses count] < 1) {
-        [self pickerNoEmail];
-        return;
-      }
-      
-      [self emailPicked:emailAddresses[0]];
-    }
-      break;
-
-    default:
-      //Should never happen, but just in case, reject promise
-      [self pickerError];
-      return;
-  }
-  
-}
-
-- (void)peoplePickerNavigationControllerDidCancel:(ABPeoplePickerNavigationController *)peoplePicker {
-  [self pickerCancelled];
-}
-
-
-
-
-
 
 @end
