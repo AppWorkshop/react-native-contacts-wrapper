@@ -59,11 +59,15 @@ public class ContactsWrapper extends ReactContextBaseJavaModule implements Activ
         add(ContactsContract.CommonDataKinds.Email.TYPE);
         add(ContactsContract.CommonDataKinds.Email.LABEL);
     }};
+    private Context context;
+
 
     public ContactsWrapper(ReactApplicationContext reactContext) {
         super(reactContext);
         this.contentResolver = getReactApplicationContext().getContentResolver();
         reactContext.addActivityEventListener(this);
+        this.context = reactContext;
+
     }
 
     @Override
@@ -129,7 +133,7 @@ public class ContactsWrapper extends ReactContextBaseJavaModule implements Activ
                             WritableMap contactData = Arguments.createMap();
                             WritableArray phonesArray = Arguments.createArray();
                             WritableArray emailsArray = Arguments.createArray();
-
+                            WritableArray postcodesArray = Arguments.createArray();
 
                             Cursor cursor = this.contentResolver.query(contactUri, null, null, null, null);
                             if (cursor != null && cursor.moveToFirst()) {
@@ -169,8 +173,43 @@ public class ContactsWrapper extends ReactContextBaseJavaModule implements Activ
                             {
                                 WritableMap phoneObj = Arguments.createMap();
                                 String number = phones.getString(phones.getColumnIndex(ContactsContract.CommonDataKinds.Phone.NUMBER));
-                                phoneObj.putString("number", number);
-                                phonesArray.pushString(number);
+                                int type = phones.getInt(phones.getColumnIndex(ContactsContract.CommonDataKinds.Phone.TYPE));
+                                String phoneType = "";
+                                switch (type) {
+                                    case ContactsContract.CommonDataKinds.Phone.TYPE_HOME:
+                                        phoneType = "home";
+                                        break;
+                                    case ContactsContract.CommonDataKinds.Phone.TYPE_MOBILE:
+                                        phoneType = "mobile";
+                                        break;
+                                    case ContactsContract.CommonDataKinds.Phone.TYPE_WORK:
+                                        phoneType = "work";
+                                        break;
+                                    case ContactsContract.CommonDataKinds.Phone.TYPE_MAIN:
+                                        phoneType = "main";
+                                        break;
+                                    case ContactsContract.CommonDataKinds.Phone.TYPE_FAX_WORK:
+                                        phoneType = "work fax";
+                                        break;
+                                    case ContactsContract.CommonDataKinds.Phone.TYPE_FAX_HOME:
+                                        phoneType = "home fax";
+                                        break;
+                                    case ContactsContract.CommonDataKinds.Phone.TYPE_PAGER:
+                                        phoneType = "pager";
+                                        break;
+                                    case ContactsContract.CommonDataKinds.Phone.TYPE_OTHER:
+                                        phoneType = "other";
+                                        break;
+                                    case ContactsContract.CommonDataKinds.Phone.TYPE_CUSTOM:
+                                        phoneType = phones.getString(phones.getColumnIndex(ContactsContract.CommonDataKinds.Phone.LABEL));
+                                        break;
+                                    default:
+                                        phoneType = "number";
+                                        break;
+                                }
+                                phoneObj.putString("phone", number);
+                                phoneObj.putString("phoneType", phoneType);
+                                phonesArray.pushMap(phoneObj);
                             }
                             phones.close();
 
@@ -181,13 +220,58 @@ public class ContactsWrapper extends ReactContextBaseJavaModule implements Activ
                             {
                                 WritableMap emailObj = Arguments.createMap();
                                 String emailAddress = emails.getString(emails.getColumnIndex(ContactsContract.CommonDataKinds.Email.ADDRESS));
-                                emailObj.putString("address", emailAddress);
-                                emailsArray.pushString(emailAddress);
+                                int type = emails.getInt(emails.getColumnIndex(ContactsContract.CommonDataKinds.Email.TYPE));
+                                String emailType;
+                                switch (type) {
+                                    case ContactsContract.CommonDataKinds.Email.TYPE_HOME:
+                                        emailType = "home";
+                                        break;
+                                    case ContactsContract.CommonDataKinds.Email.TYPE_MOBILE:
+                                        emailType = "mobile";
+                                        break;
+                                    case ContactsContract.CommonDataKinds.Email.TYPE_WORK:
+                                        emailType = "work";
+                                        break;
+                                    case ContactsContract.CommonDataKinds.Email.TYPE_OTHER:
+                                        emailType = "other";
+                                        break;
+                                    case ContactsContract.CommonDataKinds.Email.TYPE_CUSTOM:
+                                        emailType = emails.getString(emails.getColumnIndex(ContactsContract.CommonDataKinds.Email.LABEL));
+                                        break;
+                                    default:
+                                        emailType = "email";
+                                        break;
+                                }
+                                emailObj.putString("email", emailAddress);
+                                emailObj.putString("emailType", emailType);
+                                emailsArray.pushMap(emailObj);
                             }
                             emails.close();
 
-                            contactData.putArray("email", emailsArray);
-                            contactData.putArray("phone", phonesArray);
+                            //loop through all postcodes
+                            /*String addrWhere = ContactsContract.Data.CONTACT_ID + " = ? AND " + ContactsContract.Data.MIMETYPE + " = ?";
+                            String[] addrWhereParams = new String[]{id,
+                                    ContactsContract.CommonDataKinds.StructuredPostal.CONTENT_ITEM_TYPE};
+
+                            Cursor postcodes = this.contentResolver.query(ContactsContract.CommonDataKinds.StructuredPostal.CONTENT_URI, null,
+                                    addrWhere, addrWhereParams, null);
+
+                            System.out.println("ABC cursor: " +postcodes);
+
+                            while(postcodes.moveToNext()) {
+                                WritableMap postcodeObj = Arguments.createMap();
+                                String postcode = postcodes.getString(postcodes.getColumnIndex(ContactsContract.CommonDataKinds.StructuredPostal.POSTCODE));
+
+                                postcodeObj.putString("postcode", postcode);
+
+                                System.out.println("ABC postcode: " +postcode);
+                            }
+
+                            postcodes.close();*/
+
+                            contactData.putArray("emails", emailsArray);
+                            contactData.putArray("phones", phonesArray);
+                            contactData.putArray("postcodes", postcodesArray);
 
                             // this now only grabs the name of the contact
                             int dataIdx = cursor.getColumnIndex(ContactsContract.Contacts.Entity.DATA1);
