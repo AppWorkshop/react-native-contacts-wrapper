@@ -142,64 +142,78 @@ RCT_EXPORT_METHOD(getEmail:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseR
             
             //Return array of phone numbers
             if([phoneNos count] > 0) {
-                NSMutableArray *phoneData = [[NSMutableArray alloc] init];
-                
-                for (int i = 0; i < [phoneNos count]; i++) {
-                    NSMutableDictionary *phoneEntry = [[NSMutableDictionary alloc] init];
-                    CNPhoneNumber *phone = ((CNLabeledValue *)phoneNos[i]).value;
-                    NSString *label = ((CNLabeledValue *)phoneNos[i]).label;
-                    label = [CNLabeledValue localizedStringForLabel:label];
-                    
-                    [phoneEntry setValue:phone.stringValue forKey:@"phone"];
-                    [phoneEntry setValue:label forKey:@"phoneType"];
-                    [phoneData addObject:phoneEntry];
+              NSMutableArray *phoneData = [[NSMutableArray alloc] init];
+              
+              for (int i = 0; i < [phoneNos count]; i++) {
+                NSMutableDictionary *phoneEntry = [[NSMutableDictionary alloc] init];
+                CNPhoneNumber *phone = ((CNLabeledValue *)phoneNos[i]).value;
+                NSString *label = ((CNLabeledValue *)phoneNos[i]).label;
+                label = [CNLabeledValue localizedStringForLabel:label];
+                  
+                if(label == NULL) {
+                  label = @"number";
                 }
-                
-                [contactData setValue:phoneData forKey:@"phones"];
+                    
+                [phoneEntry setValue:phone.stringValue forKey:@"phone"];
+                [phoneEntry setValue:label forKey:@"phoneType"];
+                [phoneData addObject:phoneEntry];
+              }
+              
+              [contactData setValue:phoneData forKey:@"phones"];
             }
             
             //Return array of email address
             if([emailAddresses count] > 0) {
-                NSMutableArray *emailData = [[NSMutableArray alloc] init];
+              NSMutableArray *emailData = [[NSMutableArray alloc] init];
+              
+              for (int i = 0; i < [emailAddresses count]; i++) {
+                NSLog(@"email: %@", emailAddresses[i]);
                 
-                for (int i = 0; i < [emailAddresses count]; i++) {
-                    NSMutableDictionary *emailEntry = [[NSMutableDictionary alloc] init];
-                    CNLabeledValue *email = ((CNLabeledValue *)emailAddresses[i]).value;
-                    NSString *label = ((CNLabeledValue *)emailAddresses[i]).label;
-                    label = [CNLabeledValue localizedStringForLabel:label];
-                    
-                    [emailEntry setValue:email forKey:@"email"];
-                    [emailEntry setValue:label forKey:@"emailType"];
-                    [emailData addObject:emailEntry];
+                NSMutableDictionary *emailEntry = [[NSMutableDictionary alloc] init];
+                CNLabeledValue *email = ((CNLabeledValue *)emailAddresses[i]).value;
+                NSString *label = ((CNLabeledValue *)emailAddresses[i]).label;
+                label = [CNLabeledValue localizedStringForLabel:label];
+                
+                if(label == NULL) {
+                  label = @"email";
                 }
                 
-                [contactData setValue:emailData forKey:@"emails"];
+                [emailEntry setValue:email forKey:@"email"];
+                [emailEntry setValue:label forKey:@"emailType"];
+                [emailData addObject:emailEntry];
+              }
+              
+              [contactData setValue:emailData forKey:@"emails"];
             }
             
             //Return array of postcodes
             if([postalAddresses count] > 0) {
-                NSMutableArray *postalData = [[NSMutableArray alloc] init];
-                
-                for(int i = 0; i < [postalAddresses count]; i++) {
-                    NSMutableDictionary *postalEntry = [[NSMutableDictionary alloc] init];
-                    CNLabeledValue *value = ((CNLabeledValue *)postalAddresses[i]).value;
-                    
-                    NSString *postcode = ((CNPostalAddress *)value).postalCode;
-                    
-                    if([postcode length] != 0) {
-                        NSString *label = ((CNLabeledValue *)postalAddresses[i]).label;
-                        label = [CNLabeledValue localizedStringForLabel:label];
-                        
-                        [postalEntry setValue:postcode forKey:@"postcode"];
-                        [postalEntry setValue:label forKey:@"postcodeType"];
-                        [postalData addObject:postalEntry];
-                    }
+              NSMutableArray *postalData = [[NSMutableArray alloc] init];
+              
+              for(int i = 0; i < [postalAddresses count]; i++) {
+                NSMutableDictionary *postalEntry = [[NSMutableDictionary alloc] init];
+                CNLabeledValue *value = ((CNLabeledValue *)postalAddresses[i]).value;
+              
+                NSString *postcode = ((CNPostalAddress *)value).postalCode;
+              
+                if([postcode length] != 0) {
+                  NSString *label = ((CNLabeledValue *)postalAddresses[i]).label;
+                  label = [CNLabeledValue localizedStringForLabel:label];
+                  
+                  if(label == NULL) {
+                    label = @"postcode";
+                  }
+                  
+                  [postalEntry setValue:postcode forKey:@"postcode"];
+                  [postalEntry setValue:label forKey:@"postcodeType"];
+                  [postalData addObject:postalEntry];
                 }
-                
-                [contactData setValue:postalData forKey:@"postcodes"];
             }
             
-            [self contactPicked:contactData];
+            [contactData setValue:postalData forKey:@"postcodes"];
+          }
+          
+          [self contactPicked:contactData];
         }
             break;
         case REQUEST_EMAIL :
