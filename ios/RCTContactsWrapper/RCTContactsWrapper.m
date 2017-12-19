@@ -166,9 +166,7 @@ RCT_EXPORT_METHOD(getEmail:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseR
             if([emailAddresses count] > 0) {
               NSMutableArray *emailData = [[NSMutableArray alloc] init];
               
-              for (int i = 0; i < [emailAddresses count]; i++) {
-                NSLog(@"email: %@", emailAddresses[i]);
-                
+              for (int i = 0; i < [emailAddresses count]; i++) {                
                 NSMutableDictionary *emailEntry = [[NSMutableDictionary alloc] init];
                 CNLabeledValue *email = ((CNLabeledValue *)emailAddresses[i]).value;
                 NSString *label = ((CNLabeledValue *)emailAddresses[i]).label;
